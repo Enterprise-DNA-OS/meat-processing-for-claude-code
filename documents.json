@@ -1,11 +1,46 @@
 [
   {
-    "name": "example",
-    "title": "TODO(author): the first document this industry must produce",
-    "for_each": "select gen_random_uuid() as id, 'Example' as name",
+    "name": "settlement",
+    "title": "Livestock settlement",
+    "for_each": "select st.id, st.number || ' ' || s.code as name from settlements st join suppliers s on s.id = st.supplier_id order by st.number",
     "file": "name",
     "sections": [
-      { "title": "Details", "sql": "select 'replace me' as item, $1::text as record_id" }
+      {
+        "title": "Document",
+        "layout": "record",
+        "sql": "select case when s.gst_registered then 'Recipient created tax invoice' else 'Settlement statement (supplier not registered for GST, no GST charged)' end as document, st.number as settlement, st.kind, st.issued_on, cfg.plant_name as buyer, cfg.plant_number as establishment, s.name as supplier, s.business_number as supplier_abn_or_nzbn, s.property_id as property, b.number as booking, b.kill_date, b.species, st.due_on, case when s.gst_registered then 'Issued under our written agreement with the supplier. The supplier will not issue a tax invoice for these supplies.' else '' end as agreement from settlements st join suppliers s on s.id = st.supplier_id join bookings b on b.id = st.booking_id cross join settings cfg where st.id = $1"
+      },
+      {
+        "title": "Lines",
+        "sql": "select description, head, kg, amount_cents from settlement_lines where settlement_id = $1 order by sort"
+      },
+      {
+        "title": "Total",
+        "layout": "record",
+        "sql": "select gross_cents, gst_cents, deductions_cents, net_cents, case when status = 'paid' then 'Paid ' || paid_on || coalesce(' (' || payment_ref || ')', '') else 'Due ' || due_on end as payment from settlements where id = $1"
+      }
+    ]
+  },
+  {
+    "name": "kill-sheet",
+    "title": "Kill sheet",
+    "for_each": "select b.id, b.number || ' ' || s.code as name from bookings b join suppliers s on s.id = b.supplier_id where b.status in ('killed', 'settled') order by b.number",
+    "file": "name",
+    "sections": [
+      {
+        "title": "Consignment",
+        "layout": "record",
+        "sql": "select v.number as booking, v.supplier_name as supplier, v.species, v.kill_date, v.grid_code as grid, a.declaration_no as declaration, a.head_received, a.dead_on_arrival, v.killed, v.condemned, v.hot_kg as total_hot_kg, v.value_cents from v_bookings v left join arrivals a on a.booking_id = v.id where v.id = $1"
+      },
+      {
+        "title": "By category",
+        "sql": "select coalesce(grid_category, category) as category, count(*) as head, round(avg(hot_kg), 1) as avg_kg, round(avg(fat_score), 1) as avg_fat, round(avg(cents_per_kg)) as avg_cents_per_kg, sum(value_cents) as value_cents from v_carcases where booking_id = $1 group by 1 order by 1"
+      },
+      {
+        "title": "Every carcase",
+        "note": "Hot standard carcase weight. Bruise score 2 or more and dark cutters carry the grid discount.",
+        "sql": "select body_no, tag_id, category, hot_kg, fat_score, teeth, bruise_score, dark_cutter, case when condemned then 'condemned: ' || condemn_reason when off_grid then 'off grid' else to_char(cents_per_kg / 100.0, 'FM990.00') || '/kg' end as price, deduction_cents, value_cents from v_carcases where booking_id = $1 order by body_no"
+      }
     ]
   }
 ]

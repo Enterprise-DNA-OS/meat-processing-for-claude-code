@@ -1,13 +1,56 @@
 [
   {
     "name": "week",
-    "title": "This week",
-    "subtitle": "Meat Processing for Claude Code: what needs attention, rendered by npm run view",
+    "title": "This week on the kill floor",
+    "subtitle": "The kill ahead, stock in the yards, settlements to pay and what is held. Rendered by npm run view.",
     "sections": [
       {
-        "title": "Needs attention",
-        "note": "TODO(author): point this at the industry's attention view (overdue, stuck, quiet).",
-        "sql": "select 'replace me' as item, 'TODO(author)' as why"
+        "title": "The kill, next seven days",
+        "note": "Head booked per day against the kill floor's capacity.",
+        "sql": "select b.kill_date, sum(b.head_booked) filter (where b.species = 'cattle') as cattle, (select cattle_per_day from settings) as cattle_capacity, sum(b.head_booked) filter (where b.species <> 'cattle') as smallstock, (select smallstock_per_day from settings) as smallstock_capacity, string_agg(b.number || ' ' || s.code, ', ' order by b.number) as bookings from bookings b join suppliers s on s.id = b.supplier_id where b.status in ('booked', 'arrived') and b.kill_date between current_date and current_date + 7 group by b.kill_date order by b.kill_date"
+      },
+      {
+        "title": "In the yards now",
+        "note": "Hours since arrival and since last fed, with the declaration and withholding status.",
+        "sql": "select b.number as booking, s.code as supplier, b.species, a.pen, a.head_received - a.dead_on_arrival as head, round(extract(epoch from (localtimestamp - a.arrived_at)) / 3600.0, 1) as hours_in_yards, round(extract(epoch from (localtimestamp - a.last_fed_at)) / 3600.0, 1) as hours_off_feed, a.declaration_received, a.withholding_clear from bookings b join arrivals a on a.booking_id = b.id join suppliers s on s.id = b.supplier_id where b.status = 'arrived' order by a.arrived_at"
+      },
+      {
+        "title": "Killed, not yet settled",
+        "note": "What is stopping each settlement: an unaccounted head, a carcase off grid, a missing declaration, or no invoice agreement.",
+        "sql": "select v.number as booking, v.supplier_code as supplier, v.kill_date, v.killed, v.value_cents, v.unaccounted, v.off_grid, v.declaration_received, case when s.gst_registered and (s.agreement_signed_on is null or s.agreement_expires_on < current_date) then 'no agreement' else 'ok' end as agreement from v_bookings v join suppliers s on s.id = v.supplier_id where v.status = 'killed' order by v.kill_date"
+      },
+      {
+        "title": "Settlements to pay",
+        "sql": "select number, supplier_code as supplier, kill_date, due_on, net_cents, greatest(days_late, 0) as days_late from v_settlements_open order by due_on"
+      },
+      {
+        "title": "Not yet reported to NLIS or NAIT",
+        "sql": "select kill_date, species, count(*) as head, round(extract(epoch from (localtimestamp - kill_date::timestamp)) / 3600.0) as hours_since_kill_date from carcases where trace_reported_at is null group by kill_date, species order by kill_date"
+      }
+    ]
+  },
+  {
+    "name": "plant",
+    "title": "Plant performance",
+    "subtitle": "Producers, prices, yields and levies over the last 90 days. Rendered by npm run view.",
+    "sections": [
+      {
+        "title": "Producers, last 90 days",
+        "note": "Bruising, dark cutters and condemnations by producer, and what the grid discounts took off.",
+        "sql": "select code, name, carcases, avg_kg, avg_cents_per_kg, bruised_pct, dark_pct, condemned_pct, deductions_cents, value_cents from v_supplier_performance where carcases > 0 order by value_cents desc"
+      },
+      {
+        "title": "Kill by category, last 30 days",
+        "sql": "select species, coalesce(grid_category, category) as category, count(*) as head, round(avg(hot_kg), 1) as avg_kg, round(avg(cents_per_kg)) as avg_cents_per_kg, sum(value_cents) as value_cents from v_carcases where kill_date >= current_date - 30 group by 1, 2 order by 1, 2"
+      },
+      {
+        "title": "Boning yield by week",
+        "sql": "select date_trunc('week', run_on)::date as week, species, sum(carcase_kg) as carcase_kg, sum(saleable_kg) as saleable_kg, round(100.0 * sum(saleable_kg) / sum(carcase_kg), 1) as yield_pct, sum(cartons) as cartons from boning_runs where run_on >= current_date - 56 group by 1, 2 order by 2, 1"
+      },
+      {
+        "title": "Levies deducted, by month",
+        "note": "What the plant has collected from producers and has to pay on.",
+        "sql": "select to_char(st.issued_on, 'YYYY-MM') as month, b.species, sum(l.head) as head, -sum(l.amount_cents) as levy_cents from settlement_lines l join settlements st on st.id = l.settlement_id join bookings b on b.id = st.booking_id where l.kind = 'levy' group by 1, 2 order by 1, 2"
       }
     ]
   }

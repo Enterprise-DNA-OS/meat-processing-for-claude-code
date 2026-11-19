@@ -17,8 +17,12 @@ That layer used to be the whole product, because talking to a database was hard.
 - **A phone app.** It runs where Claude Code runs.
 - **A vendor help desk.** This is open source. Enterprise DNA supports the installed version for businesses that want someone to call.
 
+## What stays on the floor
+
+The kill floor keeps its screens. Scales, grading cameras, carton labelling and the boning room run on their own systems, built for gloves and wash-down. This replaces the office: bookings, the kill sheet once it is off the scales, grids, settlements, levies, yields and the reports. The floor hands it a kill file each day.
+
 ## Who this fits
 
-Small teams who already use Claude Code, or who would rather learn to ask than learn another interface. If your team needs a screen to look at all day, keep Fujitsu MeatPro. If you need the answers more than the screens, this is cheaper, faster and yours.
+A plant office that would rather ask than click: a livestock buyer who wants the week's bookings against capacity, an accounts team that wants every settlement to add up and go out on time, a plant manager who wants to know why yield dropped. If your office team needs a screen to look at all day, Enterprise DNA builds one on the same database, or keep Fujitsu MeatPro. If you need the answers more than the screens, this is cheaper, faster and yours.
 
 Installed and run for you: https://enterprisedna.co/omni/instead-of/meatpro
